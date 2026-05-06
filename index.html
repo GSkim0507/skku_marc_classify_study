@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Biblo · 학술정보관 MARC 자동 생성</title>
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="apple-touch-icon" href="assets/favicon.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand" onclick="goHome()" title="홈으로">
+      <img src="assets/biblo-logo.png" alt="biblo">
+      <span class="subtitle">학술정보관 MARC 자동 생성</span>
+    </div>
+    <button class="guide-btn" id="open-guide">프로세스 설명서</button>
+  </header>
+
+  <nav class="stepper" id="stepper">
+    <div class="node active" data-step="1"><span class="circle">1</span><span class="label">ISBN</span></div>
+    <div class="line"></div>
+    <div class="node" data-step="2"><span class="circle">2</span><span class="label">도서정보</span></div>
+    <div class="line"></div>
+    <div class="node" data-step="3"><span class="circle">3</span><span class="label">DDC</span></div>
+    <div class="line"></div>
+    <div class="node" data-step="4"><span class="circle">4</span><span class="label">MARC</span></div>
+    <div class="line"></div>
+    <div class="node" data-step="5"><span class="circle">5</span><span class="label">검수</span></div>
+  </nav>
+
+  <main class="stages">
+    <section class="stage active" data-stage="1">
+  <div class="panel">
+    <div class="panel-h">신규 도서 ISBN 입력</div>
+    <div class="panel-body">
+      <input type="text" id="isbn-input" class="text-input" placeholder="978-89-364-3412-0" style="margin-bottom: 14px;">
+      <div class="label-sm" style="margin-bottom: 8px;">금일 입고 도서 (클릭 시 ISBN 자동 입력)</div>
+      <div class="chip-group" id="sample-chips" style="margin-bottom: 18px;"></div>
+      <div class="btn-row right">
+        <button class="btn btn-primary" id="call-book-info" disabled>도서정보 호출 →</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-h">
+      대시보드
+      <span class="meta">2026-05-06 기준 · 자동 갱신</span>
+    </div>
+    <div class="panel-body">
+      <div class="stat-grid">
+        <div class="stat"><div class="stat-label">전체 도서</div><div class="stat-num" id="stat-total">1,483,782<span class="unit">권</span></div><div class="stat-delta">실물 + 전자 합계</div></div>
+        <div class="stat"><div class="stat-label">실물책</div><div class="stat-num">714,172<span class="unit">권</span></div><div class="stat-delta">48.1%</div></div>
+        <div class="stat"><div class="stat-label">전자책</div><div class="stat-num">769,610<span class="unit">권</span></div><div class="stat-delta">51.9%</div></div>
+        <div class="stat"><div class="stat-label">오늘 입고</div><div class="stat-num">40<span class="unit">권</span></div><div class="stat-delta">금일 신착</div></div>
+        <div class="stat indigo"><div class="stat-label">MARC 생성 완료</div><div class="stat-num" id="stat-completed">27<span class="unit">/40</span></div><div class="stat-delta warn" id="stat-rate">진행률 67.5%</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-h">
+      생성 완료된 MARC
+      <span class="meta">최근 10건</span>
+    </div>
+    <table class="table">
+      <thead>
+        <tr>
+          <th style="width:56px;"></th>
+          <th>제목 / 저자</th>
+          <th style="width:150px;">ISBN</th>
+          <th style="width:90px;">DDC</th>
+          <th style="width:110px;">처리일시</th>
+          <th style="width:90px;">검수자</th>
+          <th style="width:90px;">상태</th>
+          <th style="width:90px; text-align:right;"></th>
+        </tr>
+      </thead>
+      <tbody id="completed-list-body"></tbody>
+    </table>
+    <div class="table-footer"><a class="link" id="show-all-completed">전체 27건 보기 →</a></div>
+  </div>
+</section>
+    <section class="stage" data-stage="2">
+  <div id="stage-2-content"></div>
+  <div id="stage-2-buttons" class="btn-row"></div>
+</section>
+    <section class="stage" data-stage="3">
+  <div id="stage-3-content"></div>
+  <div id="stage-3-buttons" class="btn-row"></div>
+</section>
+    <section class="stage" data-stage="4">
+  <div id="stage-4-content"></div>
+  <div id="stage-4-buttons" class="btn-row">
+    <button class="btn btn-ghost" onclick="goToStep(3)">← DDC 다시 매칭</button>
+    <button class="btn btn-primary" onclick="completeStep(4)">최종 검수 →</button>
+  </div>
+</section>
+    <section class="stage" data-stage="5">
+  <div id="stage-5-content"></div>
+</section>
+  </main>
+  <div class="loading-overlay" id="loading-overlay">
+    <div class="loading-card">
+      <div class="loading-spinner"></div>
+      <div class="loading-primary" id="loading-primary"></div>
+      <div class="loading-sub" id="loading-sub"></div>
+      <div class="loading-progress"><div class="loading-progress-bar"></div></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="guide-modal">
+    <div class="modal">
+      <button class="modal-close" id="guide-close">×</button>
+      <h1>프로세스 설명서</h1>
+      <p class="lead">신규 도서 ISBN 한 번 입력으로 MARC 레코드까지 생성하고, 사람이 검수해 등록하는 5단계 프로세스</p>
+
+      <div class="proc-stepper">
+        <div class="pn"><span class="num">1</span>ISBN</div>
+        <span class="arrow">→</span>
+        <div class="pn"><span class="num">2</span>도서정보</div>
+        <span class="arrow">→</span>
+        <div class="pn"><span class="num">3</span>DDC</div>
+        <span class="arrow">→</span>
+        <div class="pn"><span class="num">4</span>MARC</div>
+        <span class="arrow">→</span>
+        <div class="pn"><span class="num">5</span>검수</div>
+      </div>
+
+      <div class="proc-card">
+        <h3>1단계 · ISBN 입력 <span class="manual-tag">사람</span></h3>
+        <dl class="grid">
+          <dt>입력</dt><dd>13자리 ISBN</dd>
+          <dt>처리</dt><dd>입력값 유효성 확인 + 도서 매칭</dd>
+          <dt>출력</dt><dd>다음 단계로 진행 (도서 식별)</dd>
+        </dl>
+      </div>
+
+      <div class="proc-card">
+        <h3>2단계 · 도서 기본 정보 호출 <span class="auto-tag">자동</span> <span class="manual-tag">수정 가능</span></h3>
+        <dl class="grid">
+          <dt>입력</dt><dd>ISBN</dd>
+          <dt>처리</dt><dd>국립중앙도서관 API에서 서지 호출 + 책 지문 17필드 LLM 생성</dd>
+          <dt>출력</dt><dd>서지 7개 필드 + Fingerprint 17개 필드 (편집 가능)</dd>
+        </dl>
+      </div>
+
+      <div class="proc-card">
+        <h3>3단계 · DDC 분류 매칭 <span class="auto-tag">자동</span> <span class="manual-tag">선택 가능</span></h3>
+        <dl class="grid">
+          <dt>입력</dt><dd>책 지문 17필드</dd>
+          <dt>처리</dt><dd>SKKU DDC 사전 25,000여 항목과 의미 비교, 매칭 점수 산출</dd>
+          <dt>출력</dt><dd>추천 1개 + 대체 후보 2개 (점수와 근거 포함)</dd>
+        </dl>
+      </div>
+
+      <div class="proc-card">
+        <h3>4단계 · MARC 자동 생성 <span class="auto-tag">자동</span> <span class="manual-tag">수정 가능</span></h3>
+        <dl class="grid">
+          <dt>입력</dt><dd>서지 + 책 지문 + DDC</dd>
+          <dt>처리</dt><dd>SKKU MARC21 사전(361,353건 분석) 기반으로 18필드 생성, 의존관계·구두점 규칙 적용</dd>
+          <dt>출력</dt><dd>MARC 18필드 (필수 11 + 권장 7), 사용자 친화/Raw 토글 표시</dd>
+        </dl>
+      </div>
+
+      <div class="proc-card">
+        <h3>5단계 · 최종 검수 <span class="manual-tag">사람 (필수)</span></h3>
+        <dl class="grid">
+          <dt>입력</dt><dd>4단계 결과 전체</dd>
+          <dt>처리</dt><dd>자동 검증 7건 결과 + 검수자 책임 체크박스 확인</dd>
+          <dt>출력</dt><dd>검수자 승인 후 정식 등록, 대시보드 카운트 갱신</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+  <script src="data/sample-books.js"></script>
+  <script src="data/book-details.js"></script>
+  <script src="data/ddc-dict.js"></script>
+  <script src="data/marc-fields.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
